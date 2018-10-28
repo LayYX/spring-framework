@@ -554,11 +554,10 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 			prepareBeanFactory(beanFactory);
 
 			try {
-				// 子类在父类处理后对 bean factory 进行后处理
-				// Allows post-processing of the bean factory in context subclasses.
+				// 允许子类在父类处理后对 bean factory 进行后处理
 				postProcessBeanFactory(beanFactory);
 
-				// 调用容器内的处理器对 factory 进行处理，针对 bean factory
+				// 调用在上下文中注册为bean的工厂处理器，针对 bean
 				// Invoke factory processors registered as beans in the context.
 				invokeBeanFactoryPostProcessors(beanFactory);
 
@@ -572,15 +571,13 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				// Initialize event multicaster for this context.
 				initApplicationEventMulticaster();
 
-				// 钩子方法
-				// Initialize other special beans in specific context subclasses.
+				// Initialize other special beans in specific context subclasses，空方法
 				onRefresh();
 
 				// Check for listener beans and register them.
 				registerListeners();
 
-				// 初始化所有剩下的单例，这里才开始加载配置文件中配置的 pojo bean
-				// Instantiate all remaining (non-lazy-init) singletons.
+				// 初始化所有剩下的非懒加载单例，这里是 bean 实例化的入口
 				finishBeanFactoryInitialization(beanFactory);
 
 				// Last step: publish corresponding event.
@@ -728,6 +725,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	}
 
 	/**
+	 * 按照声明的顺序实例化并调用所有已注册的 BeanFactoryPostProcessor bean
+	 * 必须在实例化单例前调用
 	 * Instantiate and invoke all registered BeanFactoryPostProcessor beans,
 	 * respecting explicit order if given.
 	 * <p>Must be called before singleton instantiation.
@@ -735,6 +734,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	protected void invokeBeanFactoryPostProcessors(ConfigurableListableBeanFactory beanFactory) {
 		PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(beanFactory, getBeanFactoryPostProcessors());
 
+		// 检测并准备 LoadTimeWeaver，用于 AOP 编程
 		// Detect a LoadTimeWeaver and prepare for weaving, if found in the meantime
 		// (e.g. through an @Bean method registered by ConfigurationClassPostProcessor)
 		if (beanFactory.getTempClassLoader() == null && beanFactory.containsBean(LOAD_TIME_WEAVER_BEAN_NAME)) {
@@ -744,6 +744,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	}
 
 	/**
+	 * 初始化并调用所有注册的 BeanPostProcessor
 	 * Instantiate and invoke all registered BeanPostProcessor beans,
 	 * respecting explicit order if given.
 	 * <p>Must be called before any instantiation of application beans.
@@ -878,9 +879,10 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 * initializing all remaining singleton beans.
 	 */
 	protected void finishBeanFactoryInitialization(ConfigurableListableBeanFactory beanFactory) {
-		// Initialize conversion service for this context.
+		// 实例化 ConversionService，这个类用于前端传过来的 String 字符串转换成对应的数据类型
 		if (beanFactory.containsBean(CONVERSION_SERVICE_BEAN_NAME) &&
 				beanFactory.isTypeMatch(CONVERSION_SERVICE_BEAN_NAME, ConversionService.class)) {
+			// 如果 xml 中有配置 ConversionService，则使用 getBean 实例化
 			beanFactory.setConversionService(
 					beanFactory.getBean(CONVERSION_SERVICE_BEAN_NAME, ConversionService.class));
 		}
@@ -901,10 +903,10 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		// Stop using the temporary ClassLoader for type matching.
 		beanFactory.setTempClassLoader(null);
 
-		// Allow for caching all bean definition metadata, not expecting further changes.
+		// 允许缓存新的 bean definition，但是不允许修改bean definition
 		beanFactory.freezeConfiguration();
 
-		// Instantiate all remaining (non-lazy-init) singletons.
+		// 实例化剩下所有非懒加载的单例
 		beanFactory.preInstantiateSingletons();
 	}
 

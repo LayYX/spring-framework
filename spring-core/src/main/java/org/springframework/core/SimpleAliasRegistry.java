@@ -49,6 +49,12 @@ public class SimpleAliasRegistry implements AliasRegistry {
 	private final Map<String, String> aliasMap = new ConcurrentHashMap<>(16);
 
 
+	/**
+	 * key : alias
+	 * value : name
+	 * @param name the canonical name
+	 * @param alias the alias to be registered
+	 */
 	@Override
 	public void registerAlias(String name, String alias) {
 		Assert.hasText(name, "'name' must not be empty");
@@ -218,11 +224,15 @@ public class SimpleAliasRegistry implements AliasRegistry {
 		// Handle aliasing...
 		String resolvedName;
 		do {
+			// 通过别名获取 name
+			// resolvedName 为空表示没有 key 为 resolvedName
+			// 即当前 canonicalName 为 beanName，而不是别名
 			resolvedName = this.aliasMap.get(canonicalName);
 			if (resolvedName != null) {
 				canonicalName = resolvedName;
 			}
 		}
+		// resolvedName 为空标志没有对应
 		while (resolvedName != null);
 		return canonicalName;
 	}

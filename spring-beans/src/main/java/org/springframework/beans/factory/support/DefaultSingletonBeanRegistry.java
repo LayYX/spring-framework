@@ -167,6 +167,12 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	}
 
 	/**
+	 * 返回对应名字的已注册的单例对象
+	 * 检查已经实例化的单例并且还允许提前引用当前创建的单例
+	 * 单例循环引用：
+	 *   getBean(A)，A 依赖 B
+	 * 	     ==> getBean(B), B 依赖 A
+	 * 	         ==> getBean(A)，A isSingletonCurrentlyInCreation
 	 * Return the (raw) singleton object registered under the given name.
 	 * <p>Checks already instantiated singletons and also allows for an early
 	 * reference to a currently created singleton (resolving a circular reference).
@@ -177,9 +183,13 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	@Nullable
 	protected Object getSingleton(String beanName, boolean allowEarlyReference) {
 		Object singletonObject = this.singletonObjects.get(beanName);
+		// 缓存为空，并且当前 bean 是单例且正在创建
 		if (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {
 			synchronized (this.singletonObjects) {
+				// 获取 beanName 对应的 earlySingletonObject，即之前创建的 bean 对象
 				singletonObject = this.earlySingletonObjects.get(beanName);
+
+				// 如果 singletonObject 为空，则使用 beanName 对应的单例工厂创建提前引用的 bean 实例
 				if (singletonObject == null && allowEarlyReference) {
 					ObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName);
 					if (singletonFactory != null) {
@@ -391,6 +401,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	}
 
 	/**
+	 * 为给定的 bean 注册一个依赖 bean，在销毁给定 bean 之前销毁它。
 	 * Register a dependent bean for the given bean,
 	 * to be destroyed before the given bean is destroyed.
 	 * @param beanName the name of the bean
@@ -402,11 +413,17 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 		synchronized (this.dependentBeanMap) {
 			Set<String> dependentBeans =
 					this.dependentBeanMap.computeIfAbsent(canonicalName, k -> new LinkedHashSet<>(8));
+
+			// 之前没有添加过相同的 dependentBeanName，直接返回
 			if (!dependentBeans.add(dependentBeanName)) {
 				return;
 			}
 		}
 
+		// 如果 dependentBeanMap 之前已经存在相同的 dependentBeanName
+		// 这表示有多个 bean 依赖这个 dependentBeanName 对应的 bean
+		// 使用 dependenciesForBeanMap 维护 dependentBean 和依赖这个 bean 的 bean
+		// 这样保证当多个 bean 依赖统一个 bean 时，被依赖的 bean 会在最后被销毁
 		synchronized (this.dependenciesForBeanMap) {
 			Set<String> dependenciesForBean =
 					this.dependenciesForBeanMap.computeIfAbsent(dependentBeanName, k -> new LinkedHashSet<>(8));
@@ -415,6 +432,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	}
 
 	/**
+	 * 确定指定的依赖bean是否已注册为依赖于给定bean或其任何传递依赖项。
 	 * Determine whether the specified dependent bean has been registered as
 	 * dependent on the given bean or on any of its transitive dependencies.
 	 * @param beanName the name of the bean to check
@@ -427,23 +445,42 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 		}
 	}
 
+	/**
+	 * 检查 beanName 和 dependentBeanName 是否存在循环依赖
+	 * 检查 beanName 依赖的 bean 和 dependentBeanName 是否发生了循环依赖
+	 * @param beanName
+	 * @param dependentBeanName
+	 * @param alreadySeen
+	 * @return
+	 */
 	private boolean isDependent(String beanName, String dependentBeanName, @Nullable Set<String> alreadySeen) {
+		// alreadySeen 存放已经检查过和 dependentBeanName 是否发生以来的 bean name
+		// alreadySeen 中包含 beanName 则表示已经检查过
 		if (alreadySeen != null && alreadySeen.contains(beanName)) {
 			return false;
 		}
 		String canonicalName = canonicalName(beanName);
+
 		Set<String> dependentBeans = this.dependentBeanMap.get(canonicalName);
 		if (dependentBeans == null) {
 			return false;
 		}
+
+		// 如果 dependentBeans 存在 dependentBeanName
+		// 表示之前 beanName 已经注册过 dependentBeanName，即为 bean 创建了依赖 dependentBean
+		// 这时又要为 bean 创建依赖 dependentBean，显然是发生了循环依赖
 		if (dependentBeans.contains(dependentBeanName)) {
 			return true;
 		}
+
+		// transitiveDependency ：beanName 依赖的所有 dependentBeanName
 		for (String transitiveDependency : dependentBeans) {
 			if (alreadySeen == null) {
 				alreadySeen = new HashSet<>();
 			}
 			alreadySeen.add(beanName);
+
+			// 检查 beanName 依赖的 bean 和 dependentBean 是否发生循环依赖
 			if (isDependent(transitiveDependency, dependentBeanName, alreadySeen)) {
 				return true;
 			}
