@@ -169,9 +169,8 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	}
 
 	/**
-	 *  按照 depends-on 属性要求的顺序实例化 bean
-	 * 返回对应名字的已注册的单例对象
-	 * 检查已经实例化的单例并且还允许提前引用当前创建的单例
+	 * 返回缓存的 bean 对象
+	 * 检查已经实例化的单例并且还允许提前引用当前要创建的单例
 	 * 单例循环引用：
 	 *   getBean(A)，A depends-on B
 	 * 	     ==> getBean(B), B dependend-on A
