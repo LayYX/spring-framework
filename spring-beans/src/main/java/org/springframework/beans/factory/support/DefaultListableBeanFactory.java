@@ -791,7 +791,10 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 				// FactoryBean
 				if (isFactoryBean(beanName)) {
+					// 创建 FactoryBean
 					Object bean = getBean(FACTORY_BEAN_PREFIX + beanName);
+
+					// 判断是否需要 FactoryBean 是否需要创建实例
 					if (bean instanceof FactoryBean) {
 						final FactoryBean<?> factory = (FactoryBean<?>) bean;
 						boolean isEagerInit;
@@ -809,6 +812,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 						}
 					}
 				}
+
 				else {
 					getBean(beanName);
 				}

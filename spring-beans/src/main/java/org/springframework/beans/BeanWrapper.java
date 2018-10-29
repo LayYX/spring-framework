@@ -19,6 +19,8 @@ package org.springframework.beans;
 import java.beans.PropertyDescriptor;
 
 /**
+ * 作用：封装标准 JavaBean，并提供 Property 的相关接口
+ *
  * The central interface of Spring's low-level JavaBeans infrastructure.
  *
  * <p>Typically not used directly but rather implicitly via a

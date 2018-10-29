@@ -229,7 +229,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	/**
 	 * Return an instance, which may be shared or independent, of the specified bean.
 	 * @param name 用来检索 bean 的 name
-	 * @param requiredType 用来检索 bean 的类类型
+	 * @param requiredType 用来检索 bean 的类类型，这里的 requiredType 只是用来检查
+	 *                     而不会用来创建对应类型的 bean
 	 * @param args args 不为空表示要使用给定的参数创建新的 bean
 	 * @param typeCheckOnly 使用是用于检查类型，而不是实际使用这个 bean
 	 * @return an instance of the bean
@@ -270,7 +271,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		// 缓存为空：需要创建新的 bean
 		// args 不为空：表示要使用给定的参数创建新的 bean
 		else {
-			// ThreadLocal 中缓存有相同的 beanName，假设遇到了循环引用
+			// ThreadLocal 中缓存有相同的 beanName，
 			// Fail if we're already creating this bean instance:
 			// We're assumably within a circular reference.
 			if (isPrototypeCurrentlyInCreation(beanName)) {
@@ -314,12 +315,11 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				final RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
 				checkMergedBeanDefinition(mbd, beanName, args);
 
-				// 实例化当前 bean 依赖的 bean
+				// 实例化 depends-on bean
 				String[] dependsOn = mbd.getDependsOn();
 				if (dependsOn != null) {
 					for (String dep : dependsOn) {
-						// 循环依赖在之前调用 getSingleton 中解决，不会进入到后面的这一步
-						// 如果进入到这一步表示发生了 spring 无法解决的循环依赖，
+						// 检查 depends-on 是否发生循环依赖
 						if (isDependent(beanName, dep)) {
 							throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 									"Circular depends-on relationship between '" + beanName + "' and '" + dep + "'");
@@ -419,6 +419,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				throw new BeanNotOfRequiredTypeException(name, requiredType, bean.getClass());
 			}
 		}
+
 		return (T) bean;
 	}
 
