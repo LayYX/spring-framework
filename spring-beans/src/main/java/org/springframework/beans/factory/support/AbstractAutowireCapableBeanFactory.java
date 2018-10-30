@@ -133,6 +133,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	private boolean allowCircularReferences = true;
 
 	/**
+	 * 是否在循环引用的情况下使用注入原生的 bean 实例，即使注入的 bean 最终被包装。
 	 * Whether to resort to injecting a raw bean instance in case of circular reference,
 	 * even if the injected bean eventually got wrapped.
 	 */
@@ -543,7 +544,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			// 单例的话移除缓存的 beanInstance
 			instanceWrapper = this.factoryBeanInstanceCache.remove(beanName);
 		}
+
 		// instanceWrapper 为空，表示是第一次创建: 构造器注入
+		// instanceWrapper 不为空，则使用之前创建过的 bean
 		if (instanceWrapper == null) {
 			// 创建 bean instance
 			instanceWrapper = createBeanInstance(beanName, mbd, args);
@@ -585,10 +588,17 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				logger.trace("Eagerly caching bean '" + beanName +
 						"' to allow for resolving potential circular references");
 			}
+			// 添加 SingletonFactory 可以在 getSingleton 获取提前暴露的 bean
+			// 调用 SmartInstantiationAwareBeanPostProcessor 的 getEarlyBeanReference 方法获取 early reference
+			// Spring 中主要是 AOP 相应的 PostProcessor 会将 bean 替换成 代理后的切面 wrapper
 			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean));
 		}
 
-		// Initialize the bean instance.
+		// 属性注入：
+		// 此时会去创建依赖的 bean，如果存在循环依赖
+		// 那么依赖的 bean 又会尝试创建当前 bean
+		// 但因为提前暴露所以得到的是当前还未注入完毕的 bean
+		// 调用 getEarlyBeanReference 获得 BeanPostProcessor 处理后的 bean
 		Object exposedObject = bean;
 		try {
 			populateBean(beanName, mbd, instanceWrapper);
@@ -604,12 +614,21 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}
 		}
 
+		// 在属性注入中存在循环依赖时会使用 SmartBeanProcessor 会处理 bean，并将结果放入 earlySingletonExposure
+		// 此时 earlySingleton 可能会在 getEarlyBeanReference 中包装，返回的是 bean 的 wrapper
+		// 所以当属性注入完毕后需要判断是否发生了循环依赖：
+		//     earlySingleton 是否存在  ==>  后处理是否使用新的代理类替换了原始的 bean
 		if (earlySingletonExposure) {
+			// allowEarlyReference : false,只允许获取缓存的单例（即配置完毕的bean)
 			Object earlySingletonReference = getSingleton(beanName, false);
+
+			// earlySingleton 存在表示发生了循环依赖
 			if (earlySingletonReference != null) {
+				// SmartPostProcessor 没有进行封装
 				if (exposedObject == bean) {
 					exposedObject = earlySingletonReference;
 				}
+				// SmartPostProcessor 进行封装，一般是 AOP
 				else if (!this.allowRawInjectionDespiteWrapping && hasDependentBean(beanName)) {
 					String[] dependentBeans = getDependentBeans(beanName);
 					Set<String> actualDependentBeans = new LinkedHashSet<>(dependentBeans.length);
@@ -1117,6 +1136,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	}
 
 	/**
+	 * 作用：使用构造器或工厂方法创建指定的 bean
 	 * Create a new instance for the specified bean, using an appropriate instantiation strategy:
 	 * factory method, constructor autowiring, or simple instantiation.
 	 * @param beanName the name of the bean
@@ -1286,6 +1306,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 						getInstantiationStrategy().instantiate(mbd, beanName, parent),
 						getAccessControlContext());
 			}
+
 			else {
 				beanInstance = getInstantiationStrategy().instantiate(mbd, beanName, parent);
 			}
@@ -1757,6 +1778,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}, getAccessControlContext());
 		}
 		else {
+			// 调用 BeanNameAware、BeanClassLoaderAware、BeanFactoryAware aware 的方法
 			invokeAwareMethods(beanName, bean);
 		}
 
@@ -1766,6 +1788,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		try {
+			// 调用 init-methodd destroy-mehtod 等生命周期方法
 			invokeInitMethods(beanName, wrappedBean, mbd);
 		}
 		catch (Throwable ex) {
