@@ -40,6 +40,17 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 /**
+ * 作用：实现通用 Application Context，通过不同的 DefinitionReader 加载 BeanDefinition
+ *
+ * 内部使用 DefaultListableBeanFactory 加载 Beandefinition，
+ * 实现BeanDefinitionRegistry接口，以允许将任何bean定义读取器应用于它。
+ * 典型用法是通过BeanDefinitionRegistry接口注册各种bean定义，
+ * 然后调用AbstractApplicationContext.refresh（）以使用应用程序上下文语义初始化这些bean
+ * 处理ApplicationContextAware，自动检测BeanFactoryPostProcessors等）。
+ * 与为每次刷新创建新的内部BeanFactory实例的其他ApplicationContext实现相比，
+ * 此上下文的内部BeanFactory从一开始就可用，以便能够在其上注册bean定义。
+ * AbstractApplicationContext.refresh（）只能被调用一次。
+ *
  * Generic ApplicationContext implementation that holds a single internal
  * {@link org.springframework.beans.factory.support.DefaultListableBeanFactory}
  * instance and does not assume a specific bean definition format. Implements
@@ -256,6 +267,7 @@ public class GenericApplicationContext extends AbstractApplicationContext implem
 	//---------------------------------------------------------------------
 
 	/**
+	 * 内部持有单例 BeanFactory，不刷新
 	 * Do nothing: We hold a single internal BeanFactory and rely on callers
 	 * to register beans through our public methods (or the BeanFactory's).
 	 * @see #registerBeanDefinition
@@ -290,6 +302,7 @@ public class GenericApplicationContext extends AbstractApplicationContext implem
 	 */
 	@Override
 	public final ConfigurableListableBeanFactory getBeanFactory() {
+		// 已经在构造函数中被创建
 		return this.beanFactory;
 	}
 
