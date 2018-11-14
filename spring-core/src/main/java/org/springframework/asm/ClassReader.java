@@ -32,6 +32,8 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
+ * 作用：帮助 ClassVisitor 访问类文件结构
+ *
  * A parser to make a {@link ClassVisitor} visit a ClassFile structure, as defined in the Java
  * Virtual Machine Specification (JVMS). This class parses the ClassFile content and calls the
  * appropriate visit methods of a given {@link ClassVisitor} for each field, method and bytecode
