@@ -35,7 +35,7 @@ import org.springframework.lang.Nullable;
  * carried out.
  *
  * @author Ramnivas Laddad
- * @author Mark Fisher
+ * @author Mark Fisher，，
  * @since 2.5
  */
 public abstract class AbstractTypeHierarchyTraversingFilter implements TypeFilter {
