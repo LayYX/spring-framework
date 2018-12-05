@@ -53,6 +53,7 @@ public interface BeanFactoryPostProcessor {
 	 * 在标准初始化后修改 context 内部的 bean factory
 	 * 所有的 bean definition 已经加载完毕，但还没有初始化 bean
 	 * 这允许覆盖或添加属性甚至提前初始化 bean
+	 *
 	 * Modify the application context's internal bean factory after its standard
 	 * initialization. All bean definitions will have been loaded, but no beans
 	 * will have been instantiated yet. This allows for overriding or adding

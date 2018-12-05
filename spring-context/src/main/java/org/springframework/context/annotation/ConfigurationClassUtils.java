@@ -71,6 +71,8 @@ abstract class ConfigurationClassUtils {
 
 
 	/**
+	 * 检查给定的bean definition 是否是配置类，并进行标记
+	 *
 	 * Check whether the given bean definition is a candidate for a configuration class
 	 * (or a nested component class declared within a configuration/component class,
 	 * to be auto-registered as well), and mark it accordingly.
@@ -87,6 +89,8 @@ abstract class ConfigurationClassUtils {
 		}
 
 		AnnotationMetadata metadata;
+
+		// beanDef 为 AnnotatedBeanDefinition
 		if (beanDef instanceof AnnotatedBeanDefinition &&
 				className.equals(((AnnotatedBeanDefinition) beanDef).getMetadata().getClassName())) {
 			// Can reuse the pre-parsed metadata from the given BeanDefinition...
@@ -112,9 +116,12 @@ abstract class ConfigurationClassUtils {
 			}
 		}
 
+		// 检测 @Configuration 注解
 		if (isFullConfigurationCandidate(metadata)) {
 			beanDef.setAttribute(CONFIGURATION_CLASS_ATTRIBUTE, CONFIGURATION_CLASS_FULL);
 		}
+
+		// 检测 @Component @Import @ImportResource @ComponentScan
 		else if (isLiteConfigurationCandidate(metadata)) {
 			beanDef.setAttribute(CONFIGURATION_CLASS_ATTRIBUTE, CONFIGURATION_CLASS_LITE);
 		}
@@ -122,7 +129,7 @@ abstract class ConfigurationClassUtils {
 			return false;
 		}
 
-		// It's a full or lite configuration candidate... Let's determine the order value, if any.
+		// 设置 order 属性
 		Integer order = getOrder(metadata);
 		if (order != null) {
 			beanDef.setAttribute(ORDER_ATTRIBUTE, order);
@@ -143,6 +150,8 @@ abstract class ConfigurationClassUtils {
 	}
 
 	/**
+	 * 检查类的注解或元注解是否有 @Configuration 注解
+	 *
 	 * Check the given metadata for a full configuration class candidate
 	 * (i.e. a class annotated with {@code @Configuration}).
 	 * @param metadata the metadata of the annotated class
@@ -154,6 +163,8 @@ abstract class ConfigurationClassUtils {
 	}
 
 	/**
+	 * 检查类上是否有
+	 *
 	 * Check the given metadata for a lite configuration class candidate
 	 * (e.g. a class annotated with {@code @Component} or just having
 	 * {@code @Import} declarations or {@code @Bean methods}).

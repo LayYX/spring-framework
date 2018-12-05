@@ -313,6 +313,7 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 			return addCandidateComponentsFromIndex(this.componentsIndex, basePackage);
 		}
 		else {
+			// 一般进入这里
 			return scanCandidateComponents(basePackage);
 		}
 	}
@@ -435,13 +436,13 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 						// SimpleMetadataReader
 						MetadataReader metadataReader = getMetadataReaderFactory().getMetadataReader(resource);
 
-						// 判断当前资源是否是候选组件
+						// 判断是否带有 Component 注解
 						if (isCandidateComponent(metadataReader)) {
 							ScannedGenericBeanDefinition sbd = new ScannedGenericBeanDefinition(metadataReader);
 							sbd.setResource(resource);
 							sbd.setSource(resource);
 
-							//
+							// 判断类类型
 							if (isCandidateComponent(sbd)) {
 								if (debugEnabled) {
 									logger.debug("Identified candidate component class: " + resource);
@@ -539,6 +540,11 @@ public class ClassPathScanningCandidateComponentProvider implements EnvironmentC
 	 */
 	protected boolean isCandidateComponent(AnnotatedBeanDefinition beanDefinition) {
 		AnnotationMetadata metadata = beanDefinition.getMetadata();
+		/**
+		 *  independent：非匿名内部类
+		 *  concrete：具体类
+		 *  abstract & Look ：抽象类，但通过 Lookup 注解使用动态代理生成具体子类
+		 */
 		return (metadata.isIndependent() && (metadata.isConcrete() ||
 				(metadata.isAbstract() && metadata.hasAnnotatedMethods(Lookup.class.getName()))));
 	}

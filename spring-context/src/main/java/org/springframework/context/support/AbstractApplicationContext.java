@@ -542,6 +542,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 */
 	@Override
 	public void refresh() throws BeansException, IllegalStateException {
+		// 同步锁
 		synchronized (this.startupShutdownMonitor) {
 			// Prepare this context for refreshing.
 			prepareRefresh();
@@ -554,15 +555,13 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 			prepareBeanFactory(beanFactory);
 
 			try {
-				// 允许子类在父类处理后对 bean factory 进行后处理
+				// 处理 BeanFactory
 				postProcessBeanFactory(beanFactory);
 
-				// 调用在上下文中注册为bean的工厂处理器，针对 bean
-				// Invoke factory processors registered as beans in the context.
+				// 处理 Bean Definition
 				invokeBeanFactoryPostProcessors(beanFactory);
 
-				// 注册拦截 bean 创建的 bean 处理器，针对 bean
-				// Register bean processors that intercept bean creation.
+				// 注册 BeanPostProcessor，处理 bean
 				registerBeanPostProcessors(beanFactory);
 
 				// Initialize message source for this context.
