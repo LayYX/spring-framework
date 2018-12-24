@@ -66,7 +66,7 @@ import org.springframework.util.ClassUtils;
 import static org.springframework.context.annotation.AnnotationConfigUtils.CONFIGURATION_BEAN_NAME_GENERATOR;
 
 /**
- * 作用：处理 @Configuration 注解
+ * 作用：处理配置类
  *
  * {@link BeanFactoryPostProcessor} used for bootstrapping processing of
  * {@link Configuration @Configuration} classes.
@@ -220,6 +220,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 	 */
 	@Override
 	public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) {
+		// 保证该后处理器只会被调用一次
 		int registryId = System.identityHashCode(registry);
 		if (this.registriesPostProcessed.contains(registryId)) {
 			throw new IllegalStateException(
@@ -259,6 +260,11 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 	/**
 	 * 基于注册的配置类构建和验证配置模型
 	 *
+	 * 1. 在已经注册的 bean definition 中查找配置类
+	 * 2. 解析配置类
+	 * 3. 加载配置类新声明的 bean definition
+	 * 4. 更新 bean factory 的 bean definition 数量
+	 *
 	 * Build and validate a configuration model based on the registry of
 	 * {@link Configuration} classes.
 	 */
@@ -270,7 +276,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		for (String beanName : candidateNames) {
 			BeanDefinition beanDef = registry.getBeanDefinition(beanName);
 
-			// 检查配置类标志
+			// 检查配置类标志,处理过时标志为为真
 			// full:@Configuration 或元注解带有 @Configuration
 			// lite:@Component @Import @ImportResource @ComponentScan
 			if (ConfigurationClassUtils.isFullConfigurationClass(beanDef) ||
@@ -291,7 +297,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			return;
 		}
 
-		// Sort by previously determined @Order value, if applicable
+		// 按 @Order 接口排序
 		configCandidates.sort((bd1, bd2) -> {
 			int i1 = ConfigurationClassUtils.getOrder(bd1.getBeanDefinition());
 			int i2 = ConfigurationClassUtils.getOrder(bd2.getBeanDefinition());
@@ -340,6 +346,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			Set<ConfigurationClass> configClasses = new LinkedHashSet<>(parser.getConfigurationClasses());
 			configClasses.removeAll(alreadyParsed);
 
+			// 根据配置创建 ConfigurationClassBeanDefinitionReader
 			// Read the model and create bean definitions based on its content
 			if (this.reader == null) {
 				this.reader = new ConfigurationClassBeanDefinitionReader(
@@ -347,7 +354,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 						this.importBeanNameGenerator, parser.getImportRegistry());
 			}
 
-			// 加载 ConfigurationClass 声明的 bean definition
+			//
 			this.reader.loadBeanDefinitions(configClasses);
 			alreadyParsed.addAll(configClasses);
 

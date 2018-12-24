@@ -70,6 +70,9 @@ abstract class AutowireUtils {
 	}
 
 	/**
+	 * 公开方法排在私有方法之前，参数多的方法排在参数少的方法之前
+	 * 1. public < private
+	 * 2. more < less
 	 * Sort the given factory methods, preferring public methods and "greedy" ones
 	 * with a maximum of arguments. The result will contain public methods first,
 	 * with decreasing number of arguments, then non-public methods, again with

@@ -341,6 +341,8 @@ class ConstructorResolver {
 	}
 
 	/**
+	 * 根据beanDefinition是否允许访问私有方法获取类的方法反射对象
+	 *
 	 * Retrieve all candidate methods for the given class, considering
 	 * the {@link RootBeanDefinition#isNonPublicAccessAllowed()} flag.
 	 * Called as the starting point for factory method determination.
@@ -358,6 +360,8 @@ class ConstructorResolver {
 	}
 
 	/**
+	 * 使用
+	 *
 	 * Instantiate the bean using a named factory method. The method may be static, if the
 	 * bean definition parameter specifies a class, rather than a "factory-bean", or
 	 * an instance variable on a factory object itself configured using Dependency Injection.
@@ -382,6 +386,7 @@ class ConstructorResolver {
 		Class<?> factoryClass;
 		boolean isStatic;
 
+		// 使用 factoryBeanName 获取 FactoryBean
 		String factoryBeanName = mbd.getFactoryBeanName();
 		if (factoryBeanName != null) {
 			if (factoryBeanName.equals(beanName)) {
@@ -410,6 +415,11 @@ class ConstructorResolver {
 		ArgumentsHolder argsHolderToUse = null;
 		Object[] argsToUse = null;
 
+		/**
+		 * 处理调用构造器时需要传入的参数
+		 * 1. 当传入的参数不为空时，使用外部传入的参数
+		 * 2. 尝试从缓存的 factoryMethod 中获取参数
+		 */
 		if (explicitArgs != null) {
 			argsToUse = explicitArgs;
 		}
@@ -430,11 +440,20 @@ class ConstructorResolver {
 			}
 		}
 
+		/**
+		 * 寻找合适的 factoryMethodToUse 和 argsToUse
+		 *
+		 * 1. 获取符合条件的factorymethod
+		 * 2. 如果候选方法只有一个 & 且构造参数为空 & bd没有指定构造参数 直接调用
+		 * 3. 对候选的 bean method 进行排序，优先 public 其次构造参数最多
+		 * 4.
+		 */
 		if (factoryMethodToUse == null || argsToUse == null) {
 			// Need to determine the factory method...
 			// Try all methods with this name to see if they match the given arguments.
 			factoryClass = ClassUtils.getUserClass(factoryClass);
 
+			// 获取所有的实例/静态 && 方法名和配置的factoryName相同的method对象
 			Method[] rawCandidates = getCandidateMethods(factoryClass, mbd);
 			List<Method> candidateList = new ArrayList<>();
 			for (Method candidate : rawCandidates) {
@@ -443,6 +462,7 @@ class ConstructorResolver {
 				}
 			}
 
+			// 如果候选方法只有一个 & 且构造参数为空 & BeanDefinition中没有指定构造参数 直接调用
 			if (candidateList.size() == 1 && explicitArgs == null && !mbd.hasConstructorArgumentValues()) {
 				Method uniqueCandidate = candidateList.get(0);
 				if (uniqueCandidate.getParameterCount() == 0) {
@@ -457,6 +477,7 @@ class ConstructorResolver {
 				}
 			}
 
+			// 对重载的bean method进行排序，默认按排序的顺序决定需要执行的bean method
 			Method[] candidates = candidateList.toArray(new Method[0]);
 			AutowireUtils.sortFactoryMethods(candidates);
 
@@ -465,6 +486,11 @@ class ConstructorResolver {
 			int minTypeDiffWeight = Integer.MAX_VALUE;
 			Set<Method> ambiguousFactoryMethods = null;
 
+			/**
+			 * 确定构造参数的最小值
+			 * 1. 有传入构造参数时取决于构造参数
+			 * 2. 从 bean definition中获取指定的构造器参数
+			 */
 			int minNrOfArgs;
 			if (explicitArgs != null) {
 				minNrOfArgs = explicitArgs.length;
@@ -484,6 +510,14 @@ class ConstructorResolver {
 
 			LinkedList<UnsatisfiedDependencyException> causes = null;
 
+			/**
+			 * 确定合适的 FactoryMethod
+			 * 1. 方法的参数必须大于minNrOfArgs，超出的自动依赖注入
+			 * 2. 确定 argsHolder
+			 *    2.1 explicitArgs不为空时使用explicitArgs
+			 *    2.2 explicitArgs为空时使用方法的参数
+			 * 3. 根据权重比较找到最合适的factory method
+			 */
 			for (Method candidate : candidates) {
 				Class<?>[] paramTypes = candidate.getParameterTypes();
 
@@ -505,6 +539,7 @@ class ConstructorResolver {
 							if (pnd != null) {
 								paramNames = pnd.getParameterNames(candidate);
 							}
+							// 在这里获取方法参数需要的依赖，当依赖未实例化时会现实化
 							argsHolder = createArgumentArray(beanName, mbd, resolvedValues, bw,
 									paramTypes, paramNames, candidate, autowiring, candidates.length == 1);
 						}
@@ -521,6 +556,7 @@ class ConstructorResolver {
 						}
 					}
 
+					// 根据mbd的构造器参数匹配策略确定权重
 					int typeDiffWeight = (mbd.isLenientConstructorResolution() ?
 							argsHolder.getTypeDifferenceWeight(paramTypes) : argsHolder.getAssignabilityWeight(paramTypes));
 					// Choose this factory method if it represents the closest match.
@@ -549,6 +585,7 @@ class ConstructorResolver {
 				}
 			}
 
+			// 异常检查
 			if (factoryMethodToUse == null) {
 				if (causes != null) {
 					UnsatisfiedDependencyException ex = causes.removeLast();
@@ -602,6 +639,7 @@ class ConstructorResolver {
 			}
 		}
 
+		// 使用找到的 factoryMethodToUse 和 argsToUse 构造实例
 		bw.setBeanInstance(instantiate(beanName, mbd, factoryBean, factoryMethodToUse, argsToUse));
 		return bw;
 	}

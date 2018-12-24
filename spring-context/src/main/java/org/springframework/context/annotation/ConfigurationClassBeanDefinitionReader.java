@@ -119,8 +119,10 @@ class ConfigurationClassBeanDefinitionReader {
 	}
 
 	/**
-	 * Read a particular {@link ConfigurationClass}, registering bean definitions
-	 * for the class itself and all of its {@link Bean} methods.
+	 * 1. 注册 imported bean definition
+	 * 2. 加载 bean method 定义的 bean definition
+	 * 3. 从 ImportedResource 中加载配置文件
+	 * 4. 从 Registrars 加载 bean definition
 	 */
 	private void loadBeanDefinitionsForConfigurationClass(
 			ConfigurationClass configClass, TrackedConditionEvaluator trackedConditionEvaluator) {
@@ -137,6 +139,8 @@ class ConfigurationClassBeanDefinitionReader {
 		if (configClass.isImported()) {
 			registerBeanDefinitionForImportedConfigurationClass(configClass);
 		}
+
+		// 加载 bean method 的bean
 		for (BeanMethod beanMethod : configClass.getBeanMethods()) {
 			loadBeanDefinitionsForBeanMethod(beanMethod);
 		}
@@ -168,6 +172,8 @@ class ConfigurationClassBeanDefinitionReader {
 	}
 
 	/**
+	 * 读取 BeanMethod
+	 *
 	 * Read the given {@link BeanMethod}, registering bean definitions
 	 * with the BeanDefinitionRegistry based on its contents.
 	 */
@@ -212,16 +218,25 @@ class ConfigurationClassBeanDefinitionReader {
 		beanDef.setResource(configClass.getResource());
 		beanDef.setSource(this.sourceExtractor.extractSource(metadata, configClass.getResource()));
 
+		/**
+		 * 保存实例化该bean的FactoryBean和FactoryMethodName信息
+		 *
+		 * bean 可能对应多个 bean definition
+		 * 静态bean方法使用配置类类名保证所有静态bean方法的BeanClassName一致
+		 * 动态bean方法和对应的配置类实例关联，所以和对应配置类的某一个bean的BeanName进行区分
+		 */
 		if (metadata.isStatic()) {
 			// static @Bean method
 			beanDef.setBeanClassName(configClass.getMetadata().getClassName());
 			beanDef.setFactoryMethodName(methodName);
 		}
 		else {
-			// instance @Bean method
+			// 将beanMethod所在配置类声明为其FactoryBean
 			beanDef.setFactoryBeanName(configClass.getBeanName());
 			beanDef.setUniqueFactoryMethodName(methodName);
 		}
+
+		// 将注入模式设置为构造器注入,默认为 AUTOWIRE_NO
 		beanDef.setAutowireMode(AbstractBeanDefinition.AUTOWIRE_CONSTRUCTOR);
 		beanDef.setAttribute(org.springframework.beans.factory.annotation.RequiredAnnotationBeanPostProcessor.
 				SKIP_REQUIRED_CHECK_ATTRIBUTE, Boolean.TRUE);

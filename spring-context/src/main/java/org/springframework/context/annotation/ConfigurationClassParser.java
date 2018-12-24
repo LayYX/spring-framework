@@ -214,6 +214,12 @@ class ConfigurationClassParser {
 	}
 
 
+	/**
+	 * 1. 缓存机制
+	 * 2. 递归处理自身和父类
+	 * @param configClass
+	 * @throws IOException
+	 */
 	protected void processConfigurationClass(ConfigurationClass configClass) throws IOException {
 		if (this.conditionEvaluator.shouldSkip(configClass.getMetadata(), ConfigurationPhase.PARSE_CONFIGURATION)) {
 			return;
@@ -237,11 +243,10 @@ class ConfigurationClassParser {
 			}
 		}
 
-		// Recursively process the configuration class and its superclass hierarchy.
 		// 递归地处理配置类及其父类
 		SourceClass sourceClass = asSourceClass(configClass);
 		do {
-			// 返回父类
+			// 返回的父类
 			sourceClass = doProcessConfigurationClass(configClass, sourceClass);
 		}
 		while (sourceClass != null);
@@ -252,7 +257,16 @@ class ConfigurationClassParser {
 
 	/**
 	 * 从 source class 的注解、成员变量和方法构建一个完整的 ConfigurationClass
-	 *
+	 * 1. 处理 @Component 注解：扫描内部成员类
+	 * 2. 处理 @PropertySource 注解：读取配置文件
+	 * 3. 处理 @ComponentScan 注解：
+	 * 		使用 ComponentScanAnnotationParser 解析其配置
+	 * 	    转换 basePackages basePackageClasses	到同一个路径集合，使用 ClassPathBeanDefinitionScanner 扫描 bean definition
+	 * 	    递归调用自身的 parse 方法解析扫描到的配置类
+	 * 4. 处理 @Import
+	 * 5. 处理 @ImportResource
+	 * 6. 处理自身及父类的 BeanMethod，处理实现的接口的 default 方法
+	 * 7. 反对非 java 包的父类
 	 * Apply processing and build a complete {@link ConfigurationClass} by reading the
 	 * annotations, members and methods from the source class. This method can be called
 	 * multiple times as relevant sources are discovered.
@@ -283,7 +297,7 @@ class ConfigurationClassParser {
 			}
 		}
 
-		// Process any @ComponentScan annotations
+		// 处理类上的所有 @ComponentScan annotations
 		Set<AnnotationAttributes> componentScans = AnnotationConfigUtils.attributesForRepeatable(
 				sourceClass.getMetadata(), ComponentScans.class, ComponentScan.class);
 		if (!componentScans.isEmpty() &&
@@ -298,7 +312,9 @@ class ConfigurationClassParser {
 					if (bdCand == null) {
 						bdCand = holder.getBeanDefinition();
 					}
+					// 检查bean是否是ConfigurationClass(full/lite)
 					if (ConfigurationClassUtils.checkConfigurationClassCandidate(bdCand, this.metadataReaderFactory)) {
+						// 递归解析新的ConfigurationClass
 						parse(bdCand.getBeanClassName(), holder.getBeanName());
 					}
 				}
@@ -320,9 +336,10 @@ class ConfigurationClassParser {
 			}
 		}
 
-		// Process individual @Bean methods，包括父类的bean方法
+		// 按声明顺序检索类里 @Bean methods，包括父类的bean方法
 		Set<MethodMetadata> beanMethods = retrieveBeanMethodMetadata(sourceClass);
 		for (MethodMetadata methodMetadata : beanMethods) {
+			// 注册 @bean method
 			configClass.addBeanMethod(new BeanMethod(methodMetadata, configClass));
 		}
 
@@ -330,7 +347,7 @@ class ConfigurationClassParser {
 		// 扫描实现的接口的 default 方法，检查这些方法上是否有 @Bean 注解
 		processInterfaces(configClass, sourceClass);
 
-		// Process superclass, if any
+		// 处理父类
 		if (sourceClass.getMetadata().hasSuperClass()) {
 			String superclass = sourceClass.getMetadata().getSuperClassName();
 			if (superclass != null && !superclass.startsWith("java") &&
@@ -393,7 +410,8 @@ class ConfigurationClassParser {
 	}
 
 	/**
-	 * Retrieve the metadata for all <code>@Bean</code> methods.
+	 * 1. 检索当前类的 BeanMethod
+	 * 2. 当 BeanMethod 数量超过一个时，按方法声明顺序排列
 	 */
 	private Set<MethodMetadata> retrieveBeanMethodMetadata(SourceClass sourceClass) {
 		AnnotationMetadata original = sourceClass.getMetadata();
@@ -523,13 +541,16 @@ class ConfigurationClassParser {
 		Set<SourceClass> imports = new LinkedHashSet<>();
 		// 缓存遍历过的注解
 		Set<SourceClass> visited = new LinkedHashSet<>();
+
+		// 递归创建配置类在注解及其元注解中声明的配置类
 		collectImports(sourceClass, imports, visited);
 		return imports;
 	}
 
 	/**
 	 * 递归收集所有声明的 @Import 注解的值，包括所有的元注解
-	 *
+	 * 	 将value中声明的class对象转换为字符串
+	 * 	 使用Class.forName转换为类对象
 	 * Recursively collect all declared {@code @Import} values. Unlike most
 	 * meta-annotations it is valid to have several {@code @Import}s declared with
 	 * different values; the usual process of returning values from the first
@@ -545,21 +566,24 @@ class ConfigurationClassParser {
 	private void collectImports(SourceClass sourceClass, Set<SourceClass> imports, Set<SourceClass> visited)
 			throws IOException {
 
+		// 缓存引入过的 config class
 		if (visited.add(sourceClass)) {
+			// 遍历所有不以java开头 & 不是Import的注解
+			// 递归收集这些注解的元注解中的@Import注解的值
 			for (SourceClass annotation : sourceClass.getAnnotations()) {
 				String annName = annotation.getMetadata().getClassName();
 				if (!annName.startsWith("java") && !annName.equals(Import.class.getName())) {
 					collectImports(annotation, imports, visited);
 				}
 			}
-			// 添加当前SourceClass所有Import属性
+			// 添加当前SourceClass所有Import注解的value属性，即引入的类名
 			imports.addAll(sourceClass.getAnnotationAttributes(Import.class.getName(), "value"));
 		}
 	}
 
 
 
-	//
+	// 处理 Import 的配置类
 	private void processImports(ConfigurationClass configClass, SourceClass currentSourceClass,
 			Collection<SourceClass> importCandidates, boolean checkForCircularImports) {
 
@@ -567,6 +591,7 @@ class ConfigurationClassParser {
 			return;
 		}
 
+		// 检查是否循环引入
 		if (checkForCircularImports && isChainedImportOnStack(configClass)) {
 			this.problemReporter.error(new CircularImportProblem(configClass, this.importStack));
 		}
@@ -606,6 +631,7 @@ class ConfigurationClassParser {
 						// process it as an @Configuration class
 						this.importStack.registerImport(
 								currentSourceClass.getMetadata(), candidate.getMetadata().getClassName());
+						// 当作普通的配置类进行解析
 						processConfigurationClass(candidate.asConfigClass(configClass));
 					}
 				}
@@ -624,6 +650,7 @@ class ConfigurationClassParser {
 		}
 	}
 
+	// 检查是否存在循环引入链
 	private boolean isChainedImportOnStack(ConfigurationClass configClass) {
 		if (this.importStack.contains(configClass)) {
 			String configClassName = configClass.getMetadata().getClassName();
@@ -1053,8 +1080,8 @@ class ConfigurationClassParser {
 		/**
 		 * 获取指定类型注解的对应属性值
 		 * 并包装成 SourceClass
-		 * @param annType
-		 * @param attribute
+		 * @param annType  注解类名
+		 * @param attribute  属性名
 		 * @return
 		 */
 		public Collection<SourceClass> getAnnotationAttributes(String annType, String attribute) throws IOException {
@@ -1062,6 +1089,7 @@ class ConfigurationClassParser {
 			if (annotationAttributes == null || !annotationAttributes.containsKey(attribute)) {
 				return Collections.emptySet();
 			}
+			// 获取属性名attribute对应的属性值，即value对应类名
 			String[] classNames = (String[]) annotationAttributes.get(attribute);
 			Set<SourceClass> result = new LinkedHashSet<>();
 			for (String className : classNames) {

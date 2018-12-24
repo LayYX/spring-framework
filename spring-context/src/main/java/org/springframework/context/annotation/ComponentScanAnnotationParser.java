@@ -73,6 +73,16 @@ class ComponentScanAnnotationParser {
 	}
 
 
+	/**
+	 * 解析 ComponentScanner 注解：
+	 * 1. 创建 ClassPathBeanDefinitionScanner
+	 * 2. 根据注解的值设置 scanner
+	 * 3. 将 basePackages 中的路径添加到扫描路径中
+	 * 4. 将 basePackageClasses 中的类所在的包路径添加早扫描路径中
+	 * @param componentScan
+	 * @param declaringClass
+	 * @return
+	 */
 	public Set<BeanDefinitionHolder> parse(AnnotationAttributes componentScan, final String declaringClass) {
 		ClassPathBeanDefinitionScanner scanner = new ClassPathBeanDefinitionScanner(this.registry,
 				componentScan.getBoolean("useDefaultFilters"), this.environment, this.resourceLoader);
@@ -111,11 +121,15 @@ class ComponentScanAnnotationParser {
 
 		Set<String> basePackages = new LinkedHashSet<>();
 		String[] basePackagesArray = componentScan.getStringArray("basePackages");
+
+		// 解析 basePackages 数组
 		for (String pkg : basePackagesArray) {
 			String[] tokenized = StringUtils.tokenizeToStringArray(this.environment.resolvePlaceholders(pkg),
 					ConfigurableApplicationContext.CONFIG_LOCATION_DELIMITERS);
 			Collections.addAll(basePackages, tokenized);
 		}
+
+		// 将 basePackageClasses 中的类所在的包加入到集合中
 		for (Class<?> clazz : componentScan.getClassArray("basePackageClasses")) {
 			basePackages.add(ClassUtils.getPackageName(clazz));
 		}
@@ -129,6 +143,8 @@ class ComponentScanAnnotationParser {
 				return declaringClass.equals(className);
 			}
 		});
+
+		// 扫描解析到的 basePackages
 		return scanner.doScan(StringUtils.toStringArray(basePackages));
 	}
 

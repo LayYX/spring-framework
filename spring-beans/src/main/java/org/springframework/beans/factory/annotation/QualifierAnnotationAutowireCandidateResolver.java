@@ -131,6 +131,8 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 
 
 	/**
+	 *
+	 *
 	 * Determine whether the provided bean definition is an autowire candidate.
 	 * <p>To be considered a candidate the bean's <em>autowire-candidate</em>
 	 * attribute must not have been set to 'false'. Also, if an annotation on
@@ -144,8 +146,10 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 	 */
 	@Override
 	public boolean isAutowireCandidate(BeanDefinitionHolder bdHolder, DependencyDescriptor descriptor) {
+		// 使用父类检查匹配，Class类型会返回true
 		boolean match = super.isAutowireCandidate(bdHolder, descriptor);
 		if (match) {
+			// 检查否使用了 @Qualifier 注解
 			match = checkQualifiers(bdHolder, descriptor.getAnnotations());
 			if (match) {
 				MethodParameter methodParam = descriptor.getMethodParameter();
@@ -162,6 +166,8 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 
 	/**
 	 * Match the given qualifier annotations against the candidate bean definition.
+	 * 1. 当在注解中没有 @Qualifier 注解是返回 true
+	 * 2. 当存在 @Qualifier 注解时，需要beanName和注解值相同时才返回 true
 	 */
 	protected boolean checkQualifiers(BeanDefinitionHolder bdHolder, Annotation[] annotationsToSearch) {
 		if (ObjectUtils.isEmpty(annotationsToSearch)) {
@@ -172,6 +178,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 			Class<? extends Annotation> type = annotation.annotationType();
 			boolean checkMeta = true;
 			boolean fallbackToMeta = false;
+			// 检测 @Qualifier 注解
 			if (isQualifier(type)) {
 				if (!checkQualifier(bdHolder, annotation, typeConverter)) {
 					fallbackToMeta = true;
@@ -180,6 +187,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 					checkMeta = false;
 				}
 			}
+			// 在元注解中检测 @Qualifier 注解
 			if (checkMeta) {
 				boolean foundMeta = false;
 				for (Annotation metaAnn : type.getAnnotations()) {
@@ -194,6 +202,7 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 						}
 					}
 				}
+				// 验证失败 & 没有找到 meta
 				if (fallbackToMeta && !foundMeta) {
 					return false;
 				}
@@ -223,6 +232,12 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 		Class<? extends Annotation> type = annotation.annotationType();
 		RootBeanDefinition bd = (RootBeanDefinition) bdHolder.getBeanDefinition();
 
+		/**
+		 * 查找候选 bean 的 Qualifier 注解
+		 * 1. 从 bean definition 中查找
+		 * 2. 从 factory method 中查找
+		 * 3. 从 bean 对应的 Class 对象中查找
+		 */
 		AutowireCandidateQualifier qualifier = bd.getQualifier(type.getName());
 		if (qualifier == null) {
 			qualifier = bd.getQualifier(ClassUtils.getShortName(type));
@@ -279,9 +294,15 @@ public class QualifierAnnotationAutowireCandidateResolver extends GenericTypeAwa
 				// Fall back on bean definition attribute
 				actualValue = bd.getAttribute(attributeName);
 			}
+			/**
+			 * 1. 候选 bean 没有使用 @Qualifier 声明
+			 * 2. 属性值为 value
+			 * 3. 期待值为字符串类型
+			 * 4. 候选 bean 的 beanName 和被注入类上的 @Qualifier 的值相同
+			 */
 			if (actualValue == null && attributeName.equals(AutowireCandidateQualifier.VALUE_KEY) &&
 					expectedValue instanceof String && bdHolder.matchesName((String) expectedValue)) {
-				// Fall back on bean name (or alias) match
+				// 使用bean name/alias 备用匹配
 				continue;
 			}
 			if (actualValue == null && qualifier != null) {
