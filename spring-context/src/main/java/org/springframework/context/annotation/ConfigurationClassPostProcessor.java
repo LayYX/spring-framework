@@ -261,8 +261,8 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 	 * 基于注册的配置类构建和验证配置模型
 	 *
 	 * 1. 在已经注册的 bean definition 中查找配置类
-	 * 2. 解析配置类
-	 * 3. 加载配置类新声明的 bean definition
+	 * 2. 解析配置类,将解析过的ConfigurationClass保存在configClasses中
+	 * 3. 通过configClasses加载配置类新声明的 bean definition
 	 * 4. 更新 bean factory 的 bean definition 数量
 	 *
 	 * Build and validate a configuration model based on the registry of
@@ -328,6 +328,13 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 
 		Set<BeanDefinitionHolder> candidates = new LinkedHashSet<>(configCandidates);
 		Set<ConfigurationClass> alreadyParsed = new HashSet<>(configCandidates.size());
+
+		/**
+		 * 1. 使用parse解析candidates：产生新的bean definition和config class
+		 * 2. 验证
+		 * 3. 加载保存在config class中的bean method、自身bd等
+		 * 4. 更新bean definition数量
+		 */
 		do {
 			/**
 			 * 解析配置类的注解： BeanDefinitionHolder ==> ConfigurationClass
@@ -342,7 +349,9 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			parser.parse(candidates);
 			parser.validate();
 
-			// 获取缓存的 ConfigurationClass
+			// 获取 parser 解析过的 ConfigurationClss
+
+			// 这个很重要，因为会处理 ConfigurationClss 中的 bean method、propertiy并注册Imported的类
 			Set<ConfigurationClass> configClasses = new LinkedHashSet<>(parser.getConfigurationClasses());
 			configClasses.removeAll(alreadyParsed);
 
@@ -354,7 +363,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 						this.importBeanNameGenerator, parser.getImportRegistry());
 			}
 
-			//
+			// 加载configClasses自身的beanDefinition以及bean method等声明的bean
 			this.reader.loadBeanDefinitions(configClasses);
 			alreadyParsed.addAll(configClasses);
 

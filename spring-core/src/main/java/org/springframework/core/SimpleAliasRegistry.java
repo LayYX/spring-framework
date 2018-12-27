@@ -73,6 +73,7 @@ public class SimpleAliasRegistry implements AliasRegistry {
 						// An existing alias - no need to re-register
 						return;
 					}
+					// 判断别名是否允许重写
 					if (!allowAliasOverriding()) {
 						throw new IllegalStateException("Cannot define alias '" + alias + "' for name '" +
 								name + "': It is already registered for name '" + registeredName + "'.");
@@ -82,6 +83,7 @@ public class SimpleAliasRegistry implements AliasRegistry {
 								registeredName + "' with new target name '" + name + "'");
 					}
 				}
+				// 检查循环注册
 				checkForAliasCircle(name, alias);
 				this.aliasMap.put(alias, name);
 				if (logger.isTraceEnabled()) {
@@ -100,7 +102,14 @@ public class SimpleAliasRegistry implements AliasRegistry {
 	}
 
 	/**
-	 * Determine whether the given name has the given alias registered.
+	 * 别名注册存在传递性,当n2作为n3的别名时，n2的别名n1也是n3的别名
+	 * 	   n1:n2  n2:n3  -->  n1:n3
+	 *
+	 * 所以需要递归判断key及其别名是否注册了name
+	 * 先寻找value和name一致的节点
+	 * 然后再判断该节点的alias和对应的key是否一致
+	 * 最后判断别名alias注册了该key
+	 *
 	 * @param name the name to check
 	 * @param alias the alias to look for
 	 * @since 4.2.1
@@ -109,8 +118,12 @@ public class SimpleAliasRegistry implements AliasRegistry {
 		for (Map.Entry<String, String> entry : this.aliasMap.entrySet()) {
 			String registeredName = entry.getValue();
 			if (registeredName.equals(name)) {
+				// registeredAlias:name
 				String registeredAlias = entry.getKey();
-				if (registeredAlias.equals(alias) || hasAlias(registeredAlias, alias)) {
+				// registeredAlias=alias -> alias:name
+				if (registeredAlias.equals(alias)
+						// alias:registeredAlias -> alias:name
+						|| hasAlias(registeredAlias, alias)) {
 					return true;
 				}
 			}
@@ -198,6 +211,8 @@ public class SimpleAliasRegistry implements AliasRegistry {
 	}
 
 	/**
+	 * 此时alias:name，需要判断是否存在name:alias
+	 *
 	 * Check whether the given name points back to the given alias as an alias
 	 * in the other direction already, catching a circular reference upfront
 	 * and throwing a corresponding IllegalStateException.
@@ -215,6 +230,9 @@ public class SimpleAliasRegistry implements AliasRegistry {
 	}
 
 	/**
+	 * 因为别名存在多层注册：n1 -> n2 ->n3 -> n4
+	 * 该方法要返回最底层的name，即上述注册链的n4
+	 *
 	 * Determine the raw name, resolving aliases to canonical names.
 	 * @param name the user-specified name
 	 * @return the transformed name

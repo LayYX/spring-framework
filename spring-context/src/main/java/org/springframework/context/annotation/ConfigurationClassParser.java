@@ -228,6 +228,8 @@ class ConfigurationClassParser {
 		// 获取配置类缓存
 		ConfigurationClass existingClass = this.configurationClasses.get(configClass);
 		if (existingClass != null) {
+			// 新的配置类是引入的：
+			// 就配置类是引入的就合并，不是引入的不允许覆盖
 			if (configClass.isImported()) {
 				if (existingClass.isImported()) {
 					existingClass.mergeImportedBy(configClass);
@@ -235,6 +237,8 @@ class ConfigurationClassParser {
 				// Otherwise ignore new imported config class; existing non-imported class overrides it.
 				return;
 			}
+			// 不是Imported bean就是明确引入的bean，替换可能的Import
+			// 移除之前的配置类，并使用新的配置类继续进行解析
 			else {
 				// Explicit bean definition found, probably replacing an import.
 				// Let's remove the old one and go with the new one.
@@ -369,6 +373,7 @@ class ConfigurationClassParser {
 		Collection<SourceClass> memberClasses = sourceClass.getMemberClasses();
 		if (!memberClasses.isEmpty()) {
 			List<SourceClass> candidates = new ArrayList<>(memberClasses.size());
+			// 在成员类中寻找配置类
 			for (SourceClass memberClass : memberClasses) {
 				if (ConfigurationClassUtils.isConfigurationCandidate(memberClass.getMetadata()) &&
 						!memberClass.getMetadata().getClassName().equals(configClass.getMetadata().getClassName())) {
@@ -376,6 +381,7 @@ class ConfigurationClassParser {
 				}
 			}
 			OrderComparator.sort(candidates);
+			// 将内部成员配置类注册为引入类，并进行解析
 			for (SourceClass candidate : candidates) {
 				if (this.importStack.contains(configClass)) {
 					this.problemReporter.error(new CircularImportProblem(configClass, this.importStack));
@@ -599,11 +605,13 @@ class ConfigurationClassParser {
 			this.importStack.push(configClass);
 			try {
 				for (SourceClass candidate : importCandidates) {
-					// 处理 ImportSelector
+					// 处理 ImportSelector 引入的类
 					if (candidate.isAssignable(ImportSelector.class)) {
 						// Candidate class is an ImportSelector -> delegate to it to determine imports
 						Class<?> candidateClass = candidate.loadClass();
+						// 实例化 ImportSelector 的实现类
 						ImportSelector selector = BeanUtils.instantiateClass(candidateClass, ImportSelector.class);
+						// 调用实现类的aware接口
 						ParserStrategyUtils.invokeAwareMethods(
 								selector, this.environment, this.resourceLoader, this.registry);
 						if (selector instanceof DeferredImportSelector) {
@@ -611,11 +619,14 @@ class ConfigurationClassParser {
 									configClass, (DeferredImportSelector) selector);
 						}
 						else {
+							// 获取 ImportSelector 选择引入的 class
 							String[] importClassNames = selector.selectImports(currentSourceClass.getMetadata());
 							Collection<SourceClass> importSourceClasses = asSourceClasses(importClassNames);
+							// 递归处理引入的类，注意这里可能会产生循环引用
 							processImports(configClass, currentSourceClass, importSourceClasses, false);
 						}
 					}
+					// ConfigurationClass 会委托 ImportBeanDefinitionRegistrar 注册 bean
 					else if (candidate.isAssignable(ImportBeanDefinitionRegistrar.class)) {
 						// Candidate class is an ImportBeanDefinitionRegistrar ->
 						// delegate to it to register additional bean definitions
@@ -631,7 +642,7 @@ class ConfigurationClassParser {
 						// process it as an @Configuration class
 						this.importStack.registerImport(
 								currentSourceClass.getMetadata(), candidate.getMetadata().getClassName());
-						// 当作普通的配置类进行解析
+						// 当作普通的配置类进行解析,并将状态设置为 isImported
 						processConfigurationClass(candidate.asConfigClass(configClass));
 					}
 				}
@@ -790,11 +801,13 @@ class ConfigurationClassParser {
 		private List<DeferredImportSelectorHolder> deferredImportSelectors = new ArrayList<>();
 
 		/**
+		 * 向Handler添加保存有select信息的DeferredImportSelectorHolder
+		 *
 		 * Handle the specified {@link DeferredImportSelector}. If deferred import
 		 * selectors are being collected, this registers this instance to the list. If
 		 * they are being processed, the {@link DeferredImportSelector} is also processed
 		 * immediately according to its {@link DeferredImportSelector.Group}.
-		 * @param configClass the source configuration class
+		 * @param configClass the source configuration class 引入改Selector的类
 		 * @param importSelector the selector to handle
 		 */
 		public void handle(ConfigurationClass configClass, DeferredImportSelector importSelector) {
@@ -817,6 +830,7 @@ class ConfigurationClassParser {
 				if (deferredImports != null) {
 					DeferredImportSelectorGroupingHandler handler = new DeferredImportSelectorGroupingHandler();
 					deferredImports.sort(DEFERRED_IMPORT_COMPARATOR);
+					// 在GroupingHandler中注册ImportSelector
 					deferredImports.forEach(handler::register);
 					handler.processGroupImports();
 				}
@@ -835,6 +849,7 @@ class ConfigurationClassParser {
 
 		private final Map<AnnotationMetadata, ConfigurationClass> configurationClasses = new HashMap<>();
 
+		// 缓存引入ImportSelector的配置类
 		public void register(DeferredImportSelectorHolder deferredImport) {
 			Class<? extends Group> group = deferredImport.getImportSelector()
 					.getImportGroup();
