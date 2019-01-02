@@ -75,7 +75,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	/** 单例对象缓存 */
 	private final Map<String, Object> singletonObjects = new ConcurrentHashMap<>(256);
 
-	/** 单例工厂缓存 */
+	/** 单例工厂缓存，一般存放用于暴露提前引用的ObjectFactory */
 	private final Map<String, ObjectFactory<?>> singletonFactories = new HashMap<>(16);
 
 	/**
@@ -157,7 +157,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	}
 
 	/**
-	 * 添加用于构建指定单例对象的单例工厂
+	 * 添加用于构建指定单例对象的单例工厂,一般用于暴露提前引用
 	 *
 	 * Add the given singleton factory for building the specified singleton
 	 * if necessary.
@@ -194,8 +194,8 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	}
 
 	/**
-	 * 返回缓存的 bean 对象
-	 * 检查已经实例化的单例并且还允许提前引用当前要创建的单例
+	 * 1. 返回缓存的 bean 对象
+	 * 2. 提前引用当前要创建的单例
 	 * 单例循环引用：
 	 *   getBean(A)，A depends-on B
 	 * 	     ==> getBean(B), B dependend-on A
@@ -211,7 +211,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	protected Object getSingleton(String beanName, boolean allowEarlyReference) {
 		Object singletonObject = this.singletonObjects.get(beanName);
 		// 缓存为空，并且当前 bean 是单例且正在创建
-		//
+		// 表示当前bean产生了循环依赖，尝试通过提前暴露引用解决循环依赖
 		if (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {
 			synchronized (this.singletonObjects) {
 				// 获取 beanName 对应的 earlySingletonObject，即之前创建的 bean 对象
@@ -238,8 +238,9 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 
 	/**
 	 * 创建bean的入口方法，注册创建的bean单例并返回未处理的单例对象
-	 * Return the (raw) singleton object registered under the given name,
-	 * creating and registering a new one if none registered yet.
+	 * 1. 缓存创建的单例bean
+	 * 2. 设置bean创建创建状态
+	 * 3. 通过传入的ObjectFactory创建bean
 	 * @param beanName the name of the bean
 	 * @param singletonFactory the ObjectFactory to lazily create the singleton
 	 * with, if necessary
@@ -248,7 +249,9 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	public Object getSingleton(String beanName, ObjectFactory<?> singletonFactory) {
 		Assert.notNull(beanName, "Bean name must not be null");
 
+		// 保存该单例只会有一个线程在创建
 		synchronized (this.singletonObjects) {
+			// 获取已经创建或之前的线程创建的单例bean
 			Object singletonObject = this.singletonObjects.get(beanName);
 
 			// 单例未注册则创建新的 bean，否则直接返回
@@ -262,7 +265,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 					logger.debug("Creating shared instance of singleton bean '" + beanName + "'");
 				}
 
-				// 向 singletonsCurrentlyInCreation 注册 beanName
+				// 标志bean正在创建：singletonsCurrentlyInCreation
 				beforeSingletonCreation(beanName);
 				boolean newSingleton = false;
 				boolean recordSuppressedExceptions = (this.suppressedExceptions == null);
@@ -444,6 +447,8 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	}
 
 	/**
+	 * ps:注册的 depends-on 声明的顺序依赖
+	 *
 	 * 双向注册dependentBeanName依赖beanName的依赖关系：
 	 * dependentBeanMap：缓存依赖beanName的bean
 	 * dependenciesForBeanMap：缓存dependentBeanName依赖的bean

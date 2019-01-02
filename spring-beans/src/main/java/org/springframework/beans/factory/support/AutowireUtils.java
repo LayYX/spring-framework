@@ -50,6 +50,9 @@ import org.springframework.util.ClassUtils;
 abstract class AutowireUtils {
 
 	/**
+	 * 对构造方法排序，公开方法排在私有方法之前，参数多的方法排在参数少的方法之前
+	 * 1. public < private
+	 * 2. more < less
 	 * Sort the given constructors, preferring public constructors and "greedy" ones with
 	 * a maximum number of arguments. The result will contain public constructors first,
 	 * with decreasing number of arguments, then non-public constructors, again with

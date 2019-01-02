@@ -237,6 +237,13 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 		this.injectionMetadataCache.remove(beanName);
 	}
 
+	/**
+	 * 发现@Autowire注解的构造器
+	 * @param beanClass
+	 * @param beanName
+	 * @return
+	 * @throws BeanCreationException
+	 */
 	@Override
 	@Nullable
 	public Constructor<?>[] determineCandidateConstructors(Class<?> beanClass, final String beanName)
@@ -286,15 +293,25 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 					List<Constructor<?>> candidates = new ArrayList<>(rawCandidates.length);
 					Constructor<?> requiredConstructor = null;
 					Constructor<?> defaultConstructor = null;
+					// 返回kotlin的主构造器
 					Constructor<?> primaryConstructor = BeanUtils.findPrimaryConstructor(beanClass);
 					int nonSyntheticConstructors = 0;
+
+					/**
+					 * 寻找构造方法上的Autowire注解
+					 * 1. 递归向上寻找Autowire注解，并根据require标记bean是否必须
+					 * 2. 保存找到的被Autowire注解的构造方法
+					 * 3. 将无参构造器设置为默认构造器(如果存在的话)
+					 */
 					for (Constructor<?> candidate : rawCandidates) {
+						// kotlin 相关方法
 						if (!candidate.isSynthetic()) {
 							nonSyntheticConstructors++;
 						}
 						else if (primaryConstructor != null) {
 							continue;
 						}
+						// 构造器的Autowire注解
 						AnnotationAttributes ann = findAutowiredAnnotation(candidate);
 						if (ann == null) {
 							Class<?> userClass = ClassUtils.getUserClass(beanClass);
@@ -332,6 +349,13 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 							defaultConstructor = candidate;
 						}
 					}
+
+					/**
+					 * 1. 候选构造器不为空，将无参构造器放入列表
+					 * 2. 构造器只有一个且构造参数大于0,将该构造器作为候选构造器
+					 * 3、4. kotlin相关
+					 * 5. candidateConstructors设为空数组
+					 */
 					if (!candidates.isEmpty()) {
 						// Add default constructor to list of optional constructors, as fallback.
 						if (requiredConstructor == null) {
@@ -347,6 +371,7 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 						}
 						candidateConstructors = candidates.toArray(new Constructor<?>[0]);
 					}
+					// 提前处理构造器只有一个的情况：用于Autowire注入或构造器自动装配
 					else if (rawCandidates.length == 1 && rawCandidates[0].getParameterCount() > 0) {
 						candidateConstructors = new Constructor<?>[] {rawCandidates[0]};
 					}
@@ -360,6 +385,7 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 					else {
 						candidateConstructors = new Constructor<?>[0];
 					}
+					// 缓存找到的候选构造器
 					this.candidateConstructorsCache.put(beanClass, candidateConstructors);
 				}
 			}
@@ -502,6 +528,11 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 		return new InjectionMetadata(clazz, elements);
 	}
 
+	/**
+	 * 返回反射对象AccessibleObject的Autowire注解
+	 * @param ao
+	 * @return
+	 */
 	@Nullable
 	private AnnotationAttributes findAutowiredAnnotation(AccessibleObject ao) {
 		if (ao.getAnnotations().length > 0) {  // autowiring annotations have to be local

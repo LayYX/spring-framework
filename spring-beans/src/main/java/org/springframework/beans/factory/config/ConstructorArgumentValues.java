@@ -32,6 +32,7 @@ import org.springframework.util.ClassUtils;
 import org.springframework.util.ObjectUtils;
 
 /**
+ * xml配置中bean的 <construct-arg> 属性集合的封装
  * Holder for constructor argument values, typically as part of a bean definition.
  *
  * <p>Supports values for a specific index in the constructor argument list
@@ -43,8 +44,10 @@ import org.springframework.util.ObjectUtils;
  */
 public class ConstructorArgumentValues {
 
+	// <constructor-arg index= /> 使用索引表示构造参数
 	private final Map<Integer, ValueHolder> indexedArgumentValues = new LinkedHashMap<>();
 
+	// <constructor-arg name= /> 使用参数名表示构造参数
 	private final List<ValueHolder> genericArgumentValues = new ArrayList<>();
 
 
@@ -163,6 +166,8 @@ public class ConstructorArgumentValues {
 	public ValueHolder getIndexedArgumentValue(int index, @Nullable Class<?> requiredType, @Nullable String requiredName) {
 		Assert.isTrue(index >= 0, "Index must not be negative");
 		ValueHolder valueHolder = this.indexedArgumentValues.get(index);
+		// 匹配类型：依赖类型为空 | 需要类型和依赖类型一致
+		// 匹配名字：依赖名字为空 | 需要名字为空字符串 | 依赖名和需要名一致
 		if (valueHolder != null &&
 				(valueHolder.getType() == null ||
 						(requiredType != null && ClassUtils.matchesTypeName(requiredType, valueHolder.getType()))) &&
@@ -268,32 +273,39 @@ public class ConstructorArgumentValues {
 	 * Look for the next generic argument value that matches the given type,
 	 * ignoring argument values that have already been used in the current
 	 * resolution process.
-	 * @param requiredType the type to match (can be {@code null} to find
-	 * an arbitrary next generic argument value)
-	 * @param requiredName the name to match (can be {@code null} to not
-	 * match argument values by name, or empty String to match any name)
+	 * @param requiredType the type to match 来自构造器的参数类型，用于xml指定type时匹配
+	 * @param requiredName the name to match 来自构造器的参数名，用于xml指定name时匹配
 	 * @param usedValueHolders a Set of ValueHolder objects that have already been used
 	 * in the current resolution process and should therefore not be returned again
 	 * @return the ValueHolder for the argument, or {@code null} if none found
 	 */
 	@Nullable
 	public ValueHolder getGenericArgumentValue(@Nullable Class<?> requiredType, @Nullable String requiredName, @Nullable Set<ValueHolder> usedValueHolders) {
+		// 根据xml定义的name和type匹配requiredType和requiredName
 		for (ValueHolder valueHolder : this.genericArgumentValues) {
+			// 跳过已经使用过的valueHolder
 			if (usedValueHolders != null && usedValueHolders.contains(valueHolder)) {
 				continue;
 			}
+			// 依赖名存在，需要名不为""且为空或不相等
 			if (valueHolder.getName() != null && !"".equals(requiredName) &&
 					(requiredName == null || !valueHolder.getName().equals(requiredName))) {
 				continue;
 			}
+			// 依赖类型存在，需要类型为空或不匹配
 			if (valueHolder.getType() != null &&
 					(requiredType == null || !ClassUtils.matchesTypeName(requiredType, valueHolder.getType()))) {
 				continue;
 			}
+			// bd未指定依赖的name和type，但requiredType不为空，通过判断value是否是requiredType的子类进行匹配
 			if (requiredType != null && valueHolder.getType() == null && valueHolder.getName() == null &&
 					!ClassUtils.isAssignableValue(requiredType, valueHolder.getValue())) {
 				continue;
 			}
+			/**
+			 * valueName=null：不考虑requiredName
+			 * valueType=null：不考虑requiredType
+			 */
 			return valueHolder;
 		}
 		return null;
@@ -435,12 +447,15 @@ public class ConstructorArgumentValues {
 	 */
 	public static class ValueHolder implements BeanMetadataElement {
 
+		// 在解析前使用RuntimeBeanReference表示运行时引用
 		@Nullable
 		private Object value;
 
+		// 构造参数类型
 		@Nullable
 		private String type;
 
+		// 构造参数名
 		@Nullable
 		private String name;
 
