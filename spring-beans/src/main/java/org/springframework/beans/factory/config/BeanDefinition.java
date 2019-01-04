@@ -167,6 +167,7 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	void setAutowireCandidate(boolean autowireCandidate);
 
 	/**
+	 * 表示bd使用按类型注入
 	 * Return whether this bean is a candidate for getting autowired into some other bean.
 	 */
 	boolean isAutowireCandidate();
@@ -179,11 +180,14 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	void setPrimary(boolean primary);
 
 	/**
+	 * @Primary 注解的类
 	 * Return whether this bean is a primary autowire candidate.
 	 */
 	boolean isPrimary();
 
 	/**
+	 * 设置用于实例化该bean的FactoryBean
+	 * 通常FactoryBean在类里使用@Bean定义bd
 	 * Specify the factory bean to use, if any.
 	 * This the name of the bean to call the specified factory method on.
 	 * @see #setFactoryMethodName
@@ -197,6 +201,7 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	String getFactoryBeanName();
 
 	/**
+	 * FactoryBean用于创建该bean的工厂方法，被@Bean注解的方法
 	 * Specify a factory method, if any. This method will be invoked with
 	 * constructor arguments, or with no arguments if none are specified.
 	 * The method will be invoked on the specified factory bean, if any,

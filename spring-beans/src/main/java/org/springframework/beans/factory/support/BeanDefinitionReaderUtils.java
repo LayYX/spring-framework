@@ -26,6 +26,8 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 /**
+ * 1. 生成bena name
+ * 2. 注册bean
  * Utility methods that are useful for bean definition reader implementations.
  * Mainly intended for internal use.
  *
@@ -125,6 +127,7 @@ public abstract class BeanDefinitionReaderUtils {
 		}
 
 
+		// 一般为className
 		String id = generatedBeanName;
 
 		if (isInnerBean) {
@@ -162,6 +165,8 @@ public abstract class BeanDefinitionReaderUtils {
 	}
 
 	/**
+	 * 1. 使用bean name注册bean definition
+	 * 2. 注册bean name的alias
 	 * Register the given bean definition with the given bean factory.
 	 * @param definitionHolder the bean definition including name and aliases
 	 * @param registry the bean factory to register with

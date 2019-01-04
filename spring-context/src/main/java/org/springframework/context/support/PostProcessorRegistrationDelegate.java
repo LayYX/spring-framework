@@ -127,7 +127,7 @@ final class PostProcessorRegistrationDelegate {
 			invokeBeanDefinitionRegistryPostProcessors(currentRegistryProcessors, registry);
 			currentRegistryProcessors.clear();
 
-			// 最后调用其他的 BeanDefinitionRegistryPostProcessors，知道没有其它的后处理出现
+			// 最后调用其他的 BeanDefinitionRegistryPostProcessors，直到没有其它的后处理器出现
 			boolean reiterate = true;
 			while (reiterate) {
 				reiterate = false;

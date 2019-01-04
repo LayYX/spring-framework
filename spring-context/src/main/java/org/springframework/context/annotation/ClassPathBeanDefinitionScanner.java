@@ -277,6 +277,7 @@ public class ClassPathBeanDefinitionScanner extends ClassPathScanningCandidateCo
 		Set<BeanDefinitionHolder> beanDefinitions = new LinkedHashSet<>();
 		for (String basePackage : basePackages) {
 			// 扫描 basePackage 下的 bean
+			// Resource --> MetadataReader --> ScannedGenericBeanDefinition
 			Set<BeanDefinition> candidates = findCandidateComponents(basePackage);
 
 			for (BeanDefinition candidate : candidates) {

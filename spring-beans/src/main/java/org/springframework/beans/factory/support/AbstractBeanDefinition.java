@@ -163,16 +163,20 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	@Nullable
 	private Supplier<?> instanceSupplier;
 
+	// 允许访问非public属性
 	private boolean nonPublicAccessAllowed = true;
 
 	private boolean lenientConstructorResolution = true;
 
+	// 使用@Bean声明bd的类
 	@Nullable
 	private String factoryBeanName;
 
+	// 被@Bean注解的方法
 	@Nullable
 	private String factoryMethodName;
 
+	// 缓存使用<construct-arg>解析出来的参数值
 	@Nullable
 	private ConstructorArgumentValues constructorArgumentValues;
 
@@ -192,6 +196,8 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 
 	private boolean enforceDestroyMethod = true;
 
+	// not defined by the application itself (for example, an infrastructure bean such
+	// as a helper for auto-proxying, created through {@code <aop:config>}).
 	private boolean synthetic = false;
 
 	private int role = BeanDefinition.ROLE_APPLICATION;
@@ -199,6 +205,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	@Nullable
 	private String description;
 
+	// 类文件或xml的资源抽象
 	@Nullable
 	private Resource resource;
 
@@ -210,9 +217,12 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 		this(null, null);
 	}
 
+
 	/**
 	 * Create a new AbstractBeanDefinition with the given
 	 * constructor argument values and property values.
+	 * @param cargs <construct-arg> 定义的构造器参数
+	 * @param pvs <property></property> 定义的属性字段
 	 */
 	protected AbstractBeanDefinition(@Nullable ConstructorArgumentValues cargs, @Nullable MutablePropertyValues pvs) {
 		this.constructorArgumentValues = cargs;
@@ -220,6 +230,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	}
 
 	/**
+	 * 使用original的属性创建新的bd
 	 * Create a new AbstractBeanDefinition as a deep copy of the given
 	 * bean definition.
 	 * @param original the original bean definition to copy from
@@ -275,6 +286,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 
 
 	/**
+	 * 使用指定bd的属性覆盖自身原来的属性
 	 * Override settings in this bean definition (presumably a copied parent
 	 * from a parent-child inheritance relationship) from the given bean
 	 * definition (presumably the child).
@@ -552,19 +564,20 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * @see #AUTOWIRE_BY_TYPE
 	 */
 	public int getResolvedAutowireMode() {
+		// 如果装配模式是自动检测
 		if (this.autowireMode == AUTOWIRE_AUTODETECT) {
 			// Work out whether to apply setter autowiring or constructor autowiring.
 			// If it has a no-arg constructor it's deemed to be setter autowiring,
 			// otherwise we'll try constructor autowiring.
 
-			// 弄清楚是应用属性 autowiring 还是构造函数 autowiring。
-			// 如果它有一个无参数的构造函数，它被认为是setter autowiring，否则我们将尝试构造函数autowiring。
+			// 如果存在无参构造器，认为是使用属性注入
 			Constructor<?>[] constructors = getBeanClass().getConstructors();
 			for (Constructor<?> constructor : constructors) {
 				if (constructor.getParameterCount() == 0) {
 					return AUTOWIRE_BY_TYPE;
 				}
 			}
+			// 没有无参构造器时使用构造器装配
 			return AUTOWIRE_CONSTRUCTOR;
 		}
 		else {
