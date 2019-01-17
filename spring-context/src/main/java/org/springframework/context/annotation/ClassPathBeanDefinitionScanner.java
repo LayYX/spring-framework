@@ -284,6 +284,7 @@ public class ClassPathBeanDefinitionScanner extends ClassPathScanningCandidateCo
 				// 根据类上的注解设置作用域
 				ScopeMetadata scopeMetadata = this.scopeMetadataResolver.resolveScopeMetadata(candidate);
 				candidate.setScope(scopeMetadata.getScopeName());
+				// 创建bean name
 				String beanName = this.beanNameGenerator.generateBeanName(candidate, this.registry);
 				// 默认配置：懒加载、注入模式 ...
 				if (candidate instanceof AbstractBeanDefinition) {
@@ -358,7 +359,7 @@ public class ClassPathBeanDefinitionScanner extends ClassPathScanningCandidateCo
 			existingDef = originatingDef;
 		}
 
-		// beanDefinition 匹配表示已经注册，避免重复注册
+		// 当bean name冲突时，
 		if (isCompatible(beanDefinition, existingDef)) {
 			return false;
 		}

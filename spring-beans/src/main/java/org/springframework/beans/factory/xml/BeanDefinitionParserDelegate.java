@@ -433,7 +433,8 @@ public class BeanDefinitionParserDelegate {
 			}
 		}
 
-		// 第一次创建时为空，这时判断 beanName 是否唯一，不唯一则报错
+		// 判断xml指定bean name是否唯一
+		// xml指定的bean name不允许重复，重复会报错
 		if (containingBean == null) {
 			checkNameUniqueness(beanName, aliases, ele);
 		}
@@ -441,9 +442,9 @@ public class BeanDefinitionParserDelegate {
 		// 解析 bean definition
 		AbstractBeanDefinition beanDefinition = parseBeanDefinitionElement(ele, beanName, containingBean);
 
-		// 解决 bean definition beanName 为空的问题
+		// 未指定 beanName，
 		if (beanDefinition != null) {
-			// beanName 为空：id name 均为空
+			// beanName
 			if (!StringUtils.hasText(beanName)) {
 				try {
 					//
@@ -491,9 +492,13 @@ public class BeanDefinitionParserDelegate {
 	protected void checkNameUniqueness(String beanName, List<String> aliases, Element beanElement) {
 		String foundName = null;
 
+		// 使用缓存usedNames检查bean name是否已经存在
 		if (StringUtils.hasText(beanName) && this.usedNames.contains(beanName)) {
 			foundName = beanName;
 		}
+
+		// usedNames中未存在bean name
+		// 检测alias是否已经存在，保证
 		if (foundName == null) {
 			foundName = CollectionUtils.findFirstMatch(this.usedNames, aliases);
 		}
