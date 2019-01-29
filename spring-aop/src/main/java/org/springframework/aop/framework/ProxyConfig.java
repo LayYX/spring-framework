@@ -34,6 +34,7 @@ public class ProxyConfig implements Serializable {
 	private static final long serialVersionUID = -8409359707199703185L;
 
 
+	// 表示使用Class还是接口进行代理
 	private boolean proxyTargetClass = false;
 
 	private boolean optimize = false;
@@ -148,6 +149,7 @@ public class ProxyConfig implements Serializable {
 
 
 	/**
+	 * 从其他的配置对象中复制配置
 	 * Copy configuration from the other config object.
 	 * @param other object to copy configuration from
 	 */

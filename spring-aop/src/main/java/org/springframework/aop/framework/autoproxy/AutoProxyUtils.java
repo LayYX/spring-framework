@@ -57,6 +57,7 @@ public abstract class AutoProxyUtils {
 
 
 	/**
+	 * 判断给定的bean是使用目标类还是它的接口进行代理
 	 * Determine whether the given bean should be proxied with its target
 	 * class rather than its interfaces. Checks the
 	 * {@link #PRESERVE_TARGET_CLASS_ATTRIBUTE "preserveTargetClass" attribute}
@@ -102,6 +103,7 @@ public abstract class AutoProxyUtils {
 	}
 
 	/**
+	 * 在被代理bean对应的bean definition中通过ORIGINAL_TARGET_CLASS_ATTRIBUTE属性暴露未代理前的bean实例
 	 * Expose the given target class for the specified bean, if possible.
 	 * @param beanFactory the containing ConfigurableListableBeanFactory
 	 * @param beanName the name of the bean

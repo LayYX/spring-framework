@@ -99,9 +99,11 @@ public class DefaultAdvisorAutoProxyCreator extends AbstractAdvisorAutoProxyCrea
 	 */
 	@Override
 	protected boolean isEligibleAdvisorBean(String beanName) {
+		// 默认返回true
 		if (!isUsePrefix()) {
 			return true;
 		}
+		// 判断Advisor是否带有指定的前缀
 		String prefix = getAdvisorBeanNamePrefix();
 		return (prefix != null && beanName.startsWith(prefix));
 	}

@@ -41,6 +41,8 @@ import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;
 
 /**
+ * 加载spring.factory配置文件
+ *
  * General purpose factory loading mechanism for internal use within the framework.
  *
  * <p>{@code SpringFactoriesLoader} {@linkplain #loadFactories loads} and instantiates
@@ -71,6 +73,7 @@ public final class SpringFactoriesLoader {
 
 	private static final Log logger = LogFactory.getLog(SpringFactoriesLoader.class);
 
+	// 缓存类加载器加载的spring.factories文件集合
 	private static final Map<ClassLoader, MultiValueMap<String, String>> cache = new ConcurrentReferenceHashMap<>();
 
 
@@ -109,6 +112,8 @@ public final class SpringFactoriesLoader {
 	}
 
 	/**
+	 * 使用给定的类加载器从 META-INF/spring.factories 通过工厂类的完全限定类名加载其实现类
+	 *
 	 * Load the fully qualified class names of factory implementations of the
 	 * given type from {@value #FACTORIES_RESOURCE_LOCATION}, using the given
 	 * class loader.
@@ -119,10 +124,15 @@ public final class SpringFactoriesLoader {
 	 * @see #loadFactories
 	 */
 	public static List<String> loadFactoryNames(Class<?> factoryClass, @Nullable ClassLoader classLoader) {
+		// 获取全限定类名
 		String factoryClassName = factoryClass.getName();
+
+		// 加载META-INF/spring.factories
+		// 获取factoryClass的实现的的全限定类名，默认为空
 		return loadSpringFactories(classLoader).getOrDefault(factoryClassName, Collections.emptyList());
 	}
 
+	// 使用ClassLoader加载META-INF/spring.factories
 	private static Map<String, List<String>> loadSpringFactories(@Nullable ClassLoader classLoader) {
 		MultiValueMap<String, String> result = cache.get(classLoader);
 		if (result != null) {
@@ -130,10 +140,13 @@ public final class SpringFactoriesLoader {
 		}
 
 		try {
+			// 通过类加载器查找所有classpath下的META-INF/spring.factories
 			Enumeration<URL> urls = (classLoader != null ?
 					classLoader.getResources(FACTORIES_RESOURCE_LOCATION) :
 					ClassLoader.getSystemResources(FACTORIES_RESOURCE_LOCATION));
 			result = new LinkedMultiValueMap<>();
+
+			// 遍历spring.factories的URL
 			while (urls.hasMoreElements()) {
 				URL url = urls.nextElement();
 				UrlResource resource = new UrlResource(url);
